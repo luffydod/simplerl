@@ -1,0 +1,3 @@
+# SimpleRL
+
+Simplerl is an educational reinforcement learning library implementing fundamental algorithms like Monte Carlo (MC), Temporal Difference (TD), SARSA, and Q-Learning. It provides clean, beginner-friendly Python implementations alongside classic environments such as GridWorld, CliffWalking, and FrozenLake. Designed for RL learners and researchers, Simplerl offers a practical starting point for understanding core reinforcement learning concepts through hands-on experimentation with essential algorithms and standardized testing scenarios.
