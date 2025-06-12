@@ -121,7 +121,13 @@ class MazeEnv(Env):
         """
         Get the Q-table index
         """
-        return int(obs[0]), int(obs[1]), int(action)
+        return obs[0], obs[1], action
+    
+    def _get_q_state_index(self, obs: np.ndarray) -> Tuple[int, int]:
+        """
+        Get the Q-table state index
+        """
+        return tuple(obs)
     
     def reset(self, *, seed=None, options=None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
