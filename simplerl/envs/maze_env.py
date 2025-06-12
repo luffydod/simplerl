@@ -73,9 +73,9 @@ class MazeEnv(Env):
         self.goal_pos = goal_pos
         
         # Define action up(0), right(1), down(2), left(3)
-        self.action_space = spaces.Discrete(4)  # 
-        # observation space: (agent_row, agent_col, goal_row, goal_col)
-        self.observation_space = spaces.Box(low=0, high=self.size-1, shape=(4,), dtype=np.int32)
+        self.action_space = spaces.Discrete(4)
+        # observation space: (agent_row, agent_col)
+        self.observation_space = spaces.Box(low=0, high=self.size-1, shape=(2,), dtype=np.int32)
         
         # State space: (row, col)
         self.agent_pos = self.start_pos
@@ -110,7 +110,19 @@ class MazeEnv(Env):
             maze[x, y] = 0
             
         return maze
-        
+    
+    def _get_q_table(self) -> np.ndarray:
+        """
+        Get the Q-table
+        """
+        return np.zeros((self.size, self.size, 4), dtype=np.float32)
+    
+    def _get_q_index(self, obs: np.ndarray, action: int) -> Tuple[int, int, int]:
+        """
+        Get the Q-table index
+        """
+        return int(obs[0]), int(obs[1]), int(action)
+    
     def reset(self, *, seed=None, options=None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
         Reset the environment
@@ -125,7 +137,7 @@ class MazeEnv(Env):
         self.trajectory = [self.start_pos]
         
         # Convert tuple to numpy array for gymnasium compatibility
-        observation = np.array([self.agent_pos[0], self.agent_pos[1], self.goal_pos[0], self.goal_pos[1]], dtype=np.int32)
+        observation = np.array(self.agent_pos, dtype=np.int32)
         info = {}
         
         return observation, info
@@ -179,7 +191,7 @@ class MazeEnv(Env):
             reward += 10.0
             
         # Convert tuple to numpy array for gymnasium compatibility
-        observation = np.array([self.agent_pos[0], self.agent_pos[1], self.goal_pos[0], self.goal_pos[1]], dtype=np.int32)
+        observation = np.array(self.agent_pos, dtype=np.int32)
         info = {}
             
         return observation, reward, terminated, truncated, info

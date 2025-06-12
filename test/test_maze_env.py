@@ -34,16 +34,33 @@ class TestMazeEnv:
         assert env.goal_pos == goal_pos
         np.testing.assert_array_equal(env.maze, custom_maze)
     
+    def test_get_q_table(self):
+        """测试获取Q-table"""
+        env = MazeEnv()
+        q_table = env._get_q_table()
+        assert q_table.shape == (10, 10, 4)
+        assert q_table.dtype == np.float32
+    
+    def test_get_q_index(self):
+        """测试获取Q-table index"""
+        env = MazeEnv()
+        obs = np.array([1, 2], dtype=np.int32)
+        action = env.action_space.sample()
+        q_index = env._get_q_index(obs, action)
+        assert q_index == (1, 2, action)
+        # 测试能否正常索引
+        q_table = env._get_q_table()
+        q_table[q_index] = 1.0
+        assert q_table[q_index] == 1.0
+        
     def test_reset(self):
         """测试环境重置"""
         env = MazeEnv()
         obs, info = env.reset()
         
-        assert len(obs) == 4
+        assert len(obs) == 2
         assert obs[0] == env.start_pos[0]
         assert obs[1] == env.start_pos[1]
-        assert obs[2] == env.goal_pos[0]
-        assert obs[3] == env.goal_pos[1]
         assert env.agent_pos == env.start_pos
         assert len(env.trajectory) == 1
         assert env.trajectory[0] == env.start_pos
