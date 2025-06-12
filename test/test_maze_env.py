@@ -41,24 +41,26 @@ class TestMazeEnv:
         assert q_table.shape == (10, 10, 4)
         assert q_table.dtype == np.float32
     
-    def test_get_q_index(self):
-        """测试获取Q-table index"""
-        env = MazeEnv()
-        obs = np.array([1, 2], dtype=np.int32)
-        action = env.action_space.sample()
-        q_index = env._get_q_index(obs, action)
-        assert q_index == (1, 2, action)
-        # 测试能否正常索引
-        q_table = env._get_q_table()
-        q_table[q_index] = 1.0
-        assert q_table[q_index] == 1.0
-    
     def test_get_q_state_index(self):
         """测试获取Q-table state index"""
         env = MazeEnv()
         obs = np.array([1, 2], dtype=np.int32)
         q_state_index = env._get_q_state_index(obs)
         assert q_state_index == (1, 2)
+        
+    def test_get_q_index(self):
+        """测试获取Q-table index"""
+        env = MazeEnv()
+        obs = np.array([1, 2], dtype=np.int32)
+        action = env.action_space.sample()
+        state_index = env._get_q_state_index(obs)
+        
+        # 测试能否正常索引
+        q_table = env._get_q_table()
+        q_table[state_index + (action,)] = 1.0
+        assert q_table[state_index + (action,)] == 1.0
+    
+    
     
     def test_reset(self):
         """测试环境重置"""

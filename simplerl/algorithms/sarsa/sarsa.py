@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Choice
 import numpy as np
 
 class SarsaBase(ABC):
@@ -18,7 +17,6 @@ class SarsaBase(ABC):
         self.alpha = alpha
         
         assert hasattr(self.env, "_get_q_table"), "The environment must have a _get_q_table method"
-        assert hasattr(self.env, "_get_q_index"), "The environment must have a _get_q_index method"
         assert hasattr(self.env, "_get_q_state_index"), "The environment must have a _get_q_state_index method"
         
         self.Q = self.env._get_q_table()
@@ -30,16 +28,17 @@ class SarsaBase(ABC):
         if np.random.rand() < self.epsilon:
             return self.env.action_space.sample()
         else:
-            return np.argmax(self.Q[self.env._get_q_state_index(state)])
+            state_index = self.env._get_q_state_index(state)
+            return np.argmax(self.Q[state_index])
         
     @abstractmethod
     def learn(self):
         pass
 
 class Sarsa(SarsaBase):
-    def __init__(self, env, gamma=0.99, epsilon=0.01, alpha=0.01, n_steps=1000):
+    def __init__(self, env, gamma=0.99, epsilon=0.01, alpha=0.01, total_time_steps=1000):
         super().__init__(env, gamma, epsilon, alpha)
-        self.n_steps = n_steps
+        self.total_time_steps = total_time_steps
         
 
     def learn(self):
@@ -47,7 +46,7 @@ class Sarsa(SarsaBase):
         # sample a_t
         action = self.epsilon_greedy_policy(obs)
         
-        for _ in range(self.n_steps):
+        for _ in range(self.total_time_steps):
             # take action
             next_obs, reward, terminated, truncated, info = self.env.step(action)
             
@@ -55,15 +54,21 @@ class Sarsa(SarsaBase):
             next_action = self.epsilon_greedy_policy(next_obs)
             
             # update Q by (obs, action, reward, next_obs, next_action)
-            q_sa = self.Q[self.env._get_q_index(obs, action)]
-            q_sa_next = self.Q[self.env._get_q_index(next_obs, next_action)]
-            q_sa = q_sa + self.alpha * (reward + self.gamma * q_sa_next - q_sa)
+            state_index = self.env._get_q_state_index(obs)
+            next_state_index = self.env._get_q_state_index(next_obs)
+            q_sa = self.Q[state_index + (action,)]
+            q_sa_next = self.Q[next_state_index + (next_action,)]
             
+            self.Q[state_index + (action,)] += \
+                self.alpha * (reward + self.gamma * q_sa_next - q_sa)
+                
             # update obs, action
             obs = next_obs
             action = next_action
             
-            
+            if terminated or truncated:
+                obs, _ = self.env.reset()
+                action = self.epsilon_greedy_policy(obs)
             
 
 
