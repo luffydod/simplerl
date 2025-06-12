@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import random
 from typing import Tuple, List, Dict, Any, Optional
+from gymnasium import Env
+from gymnasium import spaces
 
-class MazeEnv:
+class MazeEnv(Env):
     """
     Simple Maze Environment
     The agent moves in a 10x10 maze, 
@@ -13,9 +15,11 @@ class MazeEnv:
     and the reward is 0 otherwise.
     """
     
-    def __init__(self, maze: Optional[np.ndarray] = None, 
+    def __init__(self, 
+                 maze: Optional[np.ndarray] = None, 
                  start_pos: Optional[Tuple[int, int]] = None,
                  goal_pos: Optional[Tuple[int, int]] = None,
+                 max_steps: int = 100,
                  random_maze: bool = False):
         """
         Initialize the 10x10 maze environment
@@ -24,16 +28,20 @@ class MazeEnv:
             maze: Optional, predefined maze layout, 0 represents channels, 1 represents walls
             start_pos: Optional, starting position of the agent (row, col)
             goal_pos: Optional, goal position (row, col)
-            random_maze: Whether to generate a random maze
+            random_maze:
+                True: generate a random maze with some random channels
+                False: generate a default maze just with outer walls
         """
+        super(MazeEnv, self).__init__()
         self.size = 10  # 10x10 maze
+        self.max_steps = max_steps
         
         # If no maze is provided, create a default maze or a random maze
         if maze is None:
             if random_maze:
                 self.maze = self._generate_random_maze()
             else:
-                # Default maze: outer walls, some random walls in the middle
+                # Default maze: outer walls
                 self.maze = np.zeros((self.size, self.size), dtype=int)
                 # Set outer walls
                 self.maze[0, :] = 1
@@ -46,44 +54,33 @@ class MazeEnv:
             
         # Set start and end positions
         if start_pos is None:
-            # Default start position is the first non-wall position in the top-left corner
-            for i in range(self.size):
-                for j in range(self.size):
-                    if self.maze[i, j] == 0:
-                        self.start_pos = (i, j)
-                        break
-                if hasattr(self, 'start_pos'):
-                    break
+            start_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
+            while self.maze[start_pos] != 0:
+                start_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
         else:
             assert 0 <= start_pos[0] < self.size and 0 <= start_pos[1] < self.size, "The start position must be within the maze"
             assert self.maze[start_pos] == 0, "The start position cannot be a wall"
-            self.start_pos = start_pos
+        self.start_pos = start_pos
             
         if goal_pos is None:
-            # Default end position is the first non-wall position in the bottom-right corner
-            for i in range(self.size-1, -1, -1):
-                for j in range(self.size-1, -1, -1):
-                    if self.maze[i, j] == 0:
-                        self.goal_pos = (i, j)
-                        break
-                if hasattr(self, 'goal_pos'):
-                    break
+            goal_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
+            while self.maze[goal_pos] != 0 or goal_pos == start_pos:
+                goal_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
         else:
             assert 0 <= goal_pos[0] < self.size and 0 <= goal_pos[1] < self.size, "The end position must be within the maze"
             assert self.maze[goal_pos] == 0, "The end position cannot be a wall"
-            self.goal_pos = goal_pos
+            assert goal_pos != start_pos, "The start and end positions cannot be the same"
+        self.goal_pos = goal_pos
         
-        # Ensure the start and end positions are different
-        assert self.start_pos != self.goal_pos, "The start and end positions cannot be the same"
-        
-        # Action space: up(0), right(1), down(2), left(3)
-        self.action_space = 4
+        # Define action up(0), right(1), down(2), left(3)
+        self.action_space = spaces.Discrete(4)  # 
+        # observation space: (agent_row, agent_col, goal_row, goal_col)
+        self.observation_space = spaces.Box(low=0, high=self.size-1, shape=(4,), dtype=np.int32)
         
         # State space: (row, col)
         self.agent_pos = self.start_pos
-        self.done = False
         self.trajectory = [self.start_pos]  # record the trajectory
-        
+    
     def _generate_random_maze(self) -> np.ndarray:
         """Generate a random maze"""
         maze = np.ones((self.size, self.size), dtype=int)
@@ -114,19 +111,26 @@ class MazeEnv:
             
         return maze
         
-    def reset(self) -> Tuple[int, int]:
+    def reset(self, *, seed=None, options=None) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
         Reset the environment
         
         Returns:
-            The initial position of the agent
+            observation: The initial position of the agent
+            info: Additional information
         """
+        super().reset(seed=seed)
+        self.steps = 0
         self.agent_pos = self.start_pos
-        self.done = False
         self.trajectory = [self.start_pos]
-        return self.agent_pos
+        
+        # Convert tuple to numpy array for gymnasium compatibility
+        observation = np.array([self.agent_pos[0], self.agent_pos[1], self.goal_pos[0], self.goal_pos[1]], dtype=np.int32)
+        info = {}
+        
+        return observation, info
     
-    def step(self, action: int) -> Tuple[Tuple[int, int], float, bool, Dict[str, Any]]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """
         Perform one step action
         
@@ -134,12 +138,14 @@ class MazeEnv:
             action: The action, 0=up, 1=right, 2=down, 3=left
             
         Returns:
-            next_state: The next state (agent's new position)
+            observation: The next state (agent's new position)
             reward: The reward
-            done: Whether the episode is done
+            terminated: Whether the episode is terminated
+            truncated: Whether the episode is truncated
             info: Additional information
         """
-        assert 0 <= action < self.action_space, f"The action must be between 0 and {self.action_space-1}"
+        assert self.action_space.contains(action), f"The action must be between 0 and {self.action_space.n-1}"
+        self.steps += 1
         
         # Calculate the new position
         row, col = self.agent_pos
@@ -165,23 +171,25 @@ class MazeEnv:
         self.trajectory.append(new_pos)
         
         # Check if the agent has reached the goal
-        if self.agent_pos == self.goal_pos:
+        terminated = self.agent_pos == self.goal_pos
+        truncated = (self.steps >= self.max_steps)
+        
+        if terminated:
             # reaching the goal earns a reward of +10
             reward += 10.0
-            self.done = True
             
-        return self.agent_pos, reward, self.done, {}
+        # Convert tuple to numpy array for gymnasium compatibility
+        observation = np.array([self.agent_pos[0], self.agent_pos[1], self.goal_pos[0], self.goal_pos[1]], dtype=np.int32)
+        info = {}
+            
+        return observation, reward, terminated, truncated, info
     
-    def render(self, mode: str = 'human', show_trajectory: bool = True) -> Optional[np.ndarray]:
+    def render(self) -> Optional[np.ndarray]:
         """
         Render the current environment state
         
-        Parameters:
-            mode: The rendering mode, 'human' displays the image, 'rgb_array' returns the RGB array
-            show_trajectory: Whether to show the trajectory
-            
         Returns:
-            If mode='rgb_array', return the RGB array, otherwise return None
+            If render_mode='rgb_array', return the RGB array, otherwise return None
         """
         # Create a grid for rendering
         grid = self.maze.copy()
@@ -212,26 +220,15 @@ class MazeEnv:
         plt.yticks(np.arange(-0.5, self.size, 1), [])
         
         # Show the trajectory
-        if show_trajectory and len(self.trajectory) > 1:
+        if len(self.trajectory) > 1:
             traj_y, traj_x = zip(*self.trajectory)
             plt.plot(traj_x, traj_y, 'b-', linewidth=2, alpha=0.5)
         
         plt.title('10x10 Maze Environment')
         
-        if mode == 'human':
-            plt.show()
-            return None
-        elif mode == 'rgb_array':
-            fig = plt.gcf()
-            fig.canvas.draw()
-            img = np.array(fig.canvas.renderer.buffer_rgba())
-            plt.close()
-            return img
+        plt.show()
+        return None
     
-    def get_maze(self) -> np.ndarray:
-        """Return the maze layout"""
-        return self.maze.copy()
-    
-    def get_trajectory(self) -> List[Tuple[int, int]]:
-        """Return the agent's trajectory"""
-        return self.trajectory.copy() 
+    def close(self):
+        """Close the environment"""
+        plt.close()

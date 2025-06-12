@@ -5,16 +5,12 @@ Simplerl is an educational reinforcement learning library implementing fundament
 ## Sarsa
 
 Q-function Bellman Expectation Equation:
-$$
-Q_\pi(s,a)=\mathcal{R}_s^a+\gamma\sum_{s^{\prime}\in\mathcal{S}}\mathcal{P}_{ss^{\prime}}^a\sum_{a^{\prime}\in\mathcal{A}}\pi(a^{\prime}|s^{\prime})Q_\pi(s^{\prime},a^{\prime})
-$$
+$$Q_\pi(s,a)=\mathcal{R}_s^a+\gamma\sum_{s^{\prime}\in\mathcal{S}}\mathcal{P}_{ss^{\prime}}^a\sum_{a^{\prime}\in\mathcal{A}}\pi(a^{\prime}|s^{\prime})Q_\pi(s^{\prime},a^{\prime})$$
 
 Using Samples to Represent Reward $R$ and Model $P$ Function. In online learning, the agent observes a trajectory $(s, a, r, s', a')$ at each timestep.
 
 TD Learning Q-function:
-$$
-Q(s,a) \leftarrow Q(s,a) + \alpha \left( r + \gamma Q\left(s', a'\right) - Q(s, a) \right)
-$$
+$$Q(s,a) \leftarrow Q(s,a) + \alpha \left( r + \gamma Q\left(s', a'\right) - Q(s, a) \right)$$
 
 Sarsa Control at each time step: 
 ![sarsa_update](docs/images/sarsa_update.png)
