@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 import numpy as np
+import logging
 
 class SarsaBase(ABC):
-    def __init__(self, env, gamma=0.99, epsilon=0.01, alpha=0.01):
+    def __init__(self, env, logger=None, gamma=0.99, epsilon=0.01, alpha=0.01):
         """
         Initialize the Sarsa algorithm
         Args:
@@ -12,6 +13,8 @@ class SarsaBase(ABC):
             alpha: The learning rate
         """
         self.env = env
+        self.logger = logger if logger else logging.getLogger(__name__)
+        
         self.gamma = gamma
         self.epsilon = epsilon
         self.alpha = alpha
@@ -33,6 +36,10 @@ class SarsaBase(ABC):
         
     @abstractmethod
     def learn(self):
+        pass
+    
+    @abstractmethod
+    def evaluate(self):
         pass
 
 class Sarsa(SarsaBase):
@@ -70,5 +77,20 @@ class Sarsa(SarsaBase):
                 obs, _ = self.env.reset()
                 action = self.epsilon_greedy_policy(obs)
             
-
-
+    def evaluate(self, num_episodes=10):
+        for episode in range(num_episodes):
+            obs, _ = self.env.reset()
+            episode_reward = 0
+            done = False
+            steps = 0
+            
+            while not done:
+                action = self.epsilon_greedy_policy(obs)
+                next_obs, reward, terminated, truncated, info = self.env.step(action)
+                episode_reward += reward
+                done = terminated or truncated
+                steps += 1
+                obs = next_obs.copy()
+            
+            self.logger.info(f"[episode-{episode+1}]-[reward={episode_reward:.2f}]-[ep_length={steps}]")
+            
