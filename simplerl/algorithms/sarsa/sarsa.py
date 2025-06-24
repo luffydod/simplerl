@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import logging
+from tqdm import tqdm
 
 class SarsaBase(ABC):
     def __init__(self, env, logger=None, gamma=0.99, epsilon=0.01, alpha=0.01):
@@ -43,8 +44,8 @@ class SarsaBase(ABC):
         pass
 
 class Sarsa(SarsaBase):
-    def __init__(self, env, gamma=0.99, epsilon=0.01, alpha=0.01, total_time_steps=1000):
-        super().__init__(env, gamma, epsilon, alpha)
+    def __init__(self, env, logger=None, gamma=0.99, epsilon=0.01, alpha=0.01, total_time_steps=1000):
+        super().__init__(env, logger, gamma, epsilon, alpha)
         self.total_time_steps = total_time_steps
         
 
@@ -53,29 +54,33 @@ class Sarsa(SarsaBase):
         # sample a_t
         action = self.epsilon_greedy_policy(obs)
         
-        for _ in range(self.total_time_steps):
-            # take action
-            next_obs, reward, terminated, truncated, info = self.env.step(action)
-            
-            # sample a_t+1
-            next_action = self.epsilon_greedy_policy(next_obs)
-            
-            # update Q by (obs, action, reward, next_obs, next_action)
-            state_index = self.env._get_q_state_index(obs)
-            next_state_index = self.env._get_q_state_index(next_obs)
-            q_sa = self.Q[state_index + (action,)]
-            q_sa_next = self.Q[next_state_index + (next_action,)]
-            
-            self.Q[state_index + (action,)] += \
-                self.alpha * (reward + self.gamma * q_sa_next - q_sa)
+        with tqdm(total=self.total_time_steps, desc="Sarsa Learning") as pbar:
+            for _ in range(self.total_time_steps):
+                # take action
+                next_obs, reward, terminated, truncated, info = self.env.step(action)
                 
-            # update obs, action
-            obs = next_obs
-            action = next_action
-            
-            if terminated or truncated:
-                obs, _ = self.env.reset()
-                action = self.epsilon_greedy_policy(obs)
+                # sample a_t+1
+                next_action = self.epsilon_greedy_policy(next_obs)
+                
+                # update Q by (obs, action, reward, next_obs, next_action)
+                state_index = self.env._get_q_state_index(obs)
+                next_state_index = self.env._get_q_state_index(next_obs)
+                q_sa = self.Q[state_index + (action,)]
+                q_sa_next = self.Q[next_state_index + (next_action,)]
+                
+                self.Q[state_index + (action,)] += \
+                    self.alpha * (reward + self.gamma * q_sa_next - q_sa)
+                    
+                # update obs, action
+                obs = next_obs
+                action = next_action
+                
+                if terminated or truncated:
+                    obs, _ = self.env.reset()
+                    action = self.epsilon_greedy_policy(obs)
+                
+                pbar.update(1)
+                pbar.set_postfix(reward=reward)
             
     def evaluate(self, num_episodes=10):
         for episode in range(num_episodes):
