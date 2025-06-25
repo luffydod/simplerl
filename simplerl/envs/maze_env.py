@@ -9,7 +9,7 @@ from gymnasium import spaces
 class MazeEnv(Env):
     """
     Simple Maze Environment
-    The agent moves in a 10x10 maze, 
+    The agent moves in a square maze with a size of size x size, 
     reaching the goal earns a reward of +10,
     hit the wall will be punished with a reward of -1,
     and the reward is 0 otherwise.
@@ -22,7 +22,7 @@ class MazeEnv(Env):
                  max_steps: int = 100,
                  random_maze: bool = False):
         """
-        Initialize the 10x10 maze environment
+        Initialize the square maze environment
         
         Parameters:
             maze: Optional, predefined maze layout, 0 represents channels, 1 represents walls
@@ -133,8 +133,15 @@ class MazeEnv(Env):
         """
         super().reset(seed=seed)
         self.steps = 0
-        self.agent_pos = self.start_pos
-        self.trajectory = [self.start_pos]
+        # randomize the start position
+        start_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
+        while self.maze[start_pos] != 0:
+            start_pos = (random.randint(0, self.size-1), random.randint(0, self.size-1))
+        self.start_pos = start_pos
+        
+        # reset the agent's position and trajectory
+        self.agent_pos = start_pos
+        self.trajectory = [start_pos]
         
         # Convert tuple to numpy array for gymnasium compatibility
         observation = np.array(self.agent_pos, dtype=np.int32)
@@ -207,20 +214,17 @@ class MazeEnv(Env):
         grid = self.maze.copy()
         
         # Mark the start and end positions
-        start_row, start_col = self.start_pos
+        agent_row, agent_col = self.agent_pos
         goal_row, goal_col = self.goal_pos
         
         # Create a color map
-        cmap = colors.ListedColormap(['white', 'black', 'green', 'red', 'blue'])
+        cmap = colors.ListedColormap(['white', 'black', 'blue', 'red'])
         
-        # 0=channel(white), 1=wall (black), 2=start (green), 3=goal (red), 4=agent's current position (blue)
-        grid[start_row, start_col] = 2
+        # 0=channel(white), 1=wall (black), 2=current position (blue), 3=goal (red)
+        
+        if (agent_row, agent_col) != self.goal_pos:
+            grid[agent_row, agent_col] = 2
         grid[goal_row, goal_col] = 3
-        
-        # Mark the agent's current position
-        agent_row, agent_col = self.agent_pos
-        if (agent_row, agent_col) != self.goal_pos:  # If the agent is not at the goal
-            grid[agent_row, agent_col] = 4
         
         # Create a figure
         plt.figure(figsize=(7, 7))
@@ -236,8 +240,7 @@ class MazeEnv(Env):
             traj_y, traj_x = zip(*self.trajectory)
             plt.plot(traj_x, traj_y, 'b-', linewidth=2, alpha=0.5)
         
-        plt.title('10x10 Maze Environment')
-        
+        plt.title(f'{self.size}x{self.size} Maze Environment')
         plt.show()
         return None
     
