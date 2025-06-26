@@ -4,6 +4,8 @@ from matplotlib import colors
 import gymnasium as gym
 from simplerl.envs.maze_env import MazeEnv
 
+plt.rcParams['font.sans-serif'] = ['SimHei']
+
 def vis_best_policy_maze_env(q_table: np.ndarray, env: MazeEnv):
     """
     Visualize the best policy of a maze environment

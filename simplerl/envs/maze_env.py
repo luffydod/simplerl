@@ -6,6 +6,8 @@ from typing import Tuple, List, Dict, Any, Optional
 from gymnasium import Env
 from gymnasium import spaces
 
+plt.rcParams['font.sans-serif'] = ['SimHei']
+
 class MazeEnv(Env):
     """
     Simple Maze Environment
